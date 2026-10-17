@@ -221,7 +221,7 @@ window.goHouse=id=>{const h=houses.find(x=>x.id===id);if(!h)return;map.setView([
 window.editHouse=id=>{if(!adminMode)return;const h=houses.find(x=>x.id===id);if(!h)return;editingId=id;selectedCoords=[h.lat,h.lng];$('houseName').value=h.name||'';$('street').value=h.street||'';$('kind').value=h.kind||'ממתקים';$('note').value=h.note||'';$('coords').value=h.lat.toFixed(6)+', '+h.lng.toFixed(6);$('saveHouse').textContent='💾 שמירת שינויים';$('cancelEdit').style.display='inline-block';map.setView([h.lat,h.lng],18);markers[id]?.openPopup();$('houseName').focus()};
 window.deleteHouse=id=>{if(!adminMode)return;const h=houses.find(x=>x.id===id);if(!h)return;if(confirm('למחוק את '+(h.name||'הבית הזה')+' מהמפה?')){houses=houses.filter(x=>x.id!==id);persist();if(editingId===id)clearForm();render();toast('הבית הוסר מהמפה')}};
 map=L.map('map',{scrollWheelZoom:true}).setView(DEFAULT_CENTER,16);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:20,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>'}).addTo(map);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>'}).addTo(map);
 map.on('click',e=>{if(!adminMode)return;selectedCoords=[e.latlng.lat,e.latlng.lng];$('coords').value=selectedCoords[0].toFixed(6)+', '+selectedCoords[1].toFixed(6);toast('המיקום נבחר. מלאו את הפרטים ולחצו על הוספת בית.')});
 $('saveHouse').addEventListener('click',()=>{
  if(!adminMode)return;
