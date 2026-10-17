@@ -207,7 +207,7 @@ main{padding-bottom:40px;}
 <script>
 (() => {
 const $ = id => document.getElementById(id);
-const DEFAULT_CENTER = [31.87556,34.81490]; // Reference framing from the user screenshot
+const DEFAULT_CENTER = [31.87290,34.81280]; // Adjusted west so the map content shifts right, matching the requested neighborhood framing
 const STORAGE_KEY = 'halloween-neighborhood-houses-v1';
 const SUPABASE_URL = 'https://usvnmbxszlgcczkpsglv.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_OtFGScU0HvNkDe1z_KyKKg_hsy0JOrm';
@@ -226,17 +226,28 @@ function safeLoad(){try{houses=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]
 function persist(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(houses))}catch(e){}}
 function apiHeaders(extra={}){return {'apikey':SUPABASE_KEY,'Authorization':'Bearer '+(accessToken||SUPABASE_KEY),'Content-Type':'application/json',...extra}}
 async function remoteLoad(){
-  try{
-    const r=await fetch(HOUSES_API+'?select=*&order=created_at.asc',{headers:apiHeaders()});
-    if(!r.ok)throw new Error(await r.text());
-    const rows=await r.json();
-    houses=rows.map(h=>({id:String(h.id),name:h.name||'',street:h.street||'',kind:h.kind||'ממתקים',note:h.note||'',scary:h.scary===true,lat:Number(h.lat),lng:Number(h.lng)})).filter(h=>Number.isFinite(h.lat)&&Number.isFinite(h.lng));
-    persist();render();
-  }catch(e){console.error('Supabase load failed',e);toast('לא הצלחתי לטעון את הבתים מהשרת. בדקי את מבנה הטבלה וההרשאות ב‑Supabase.');}
+  const r=await fetch(HOUSES_API+'?select=*&order=created_at.asc',{headers:apiHeaders()});
+  if(!r.ok) throw new Error(await r.text());
+  const rows=await r.json();
+  houses=rows.map(h=>({
+    id:String(h.id), name:h.Name||'', street:h.Address||'', kind:'ממתקים', note:'',
+    scary:h.scary===true, lat:Number(h.Latitude), lng:Number(h.Longitud),
+    participating:h.Is_participating!==false
+  })).filter(h=>h.participating&&Number.isFinite(h.lat)&&Number.isFinite(h.lng));
+  persist();render();
 }
-async function remoteSave(h){
-  const r=await fetch(HOUSES_API+'?on_conflict=id',{method:'POST',headers:apiHeaders({'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify({id:String(h.id),name:h.name||'',street:h.street||'',kind:h.kind||'ממתקים',note:h.note||'',scary:!!h.scary,lat:Number(h.lat),lng:Number(h.lng)})});
-  if(!r.ok)throw new Error(await r.text());
+async function remoteInsert(h){
+  const payload={Name:h.name||'',Address:h.street||'',Latitude:Number(h.lat),Longitud:Number(h.lng),Is_participating:true,scary:!!h.scary};
+  const r=await fetch(HOUSES_API+'?select=id',{method:'POST',headers:apiHeaders({'Prefer':'return=representation'}),body:JSON.stringify(payload)});
+  if(!r.ok) throw new Error(await r.text());
+  const rows=await r.json();
+  if(!rows?.[0]?.id) throw new Error('Supabase did not return the created row id');
+  return String(rows[0].id);
+}
+async function remoteUpdate(h){
+  const payload={Name:h.name||'',Address:h.street||'',Latitude:Number(h.lat),Longitud:Number(h.lng),Is_participating:true,scary:!!h.scary};
+  const r=await fetch(HOUSES_API+'?id=eq.'+encodeURIComponent(String(h.id)),{method:'PATCH',headers:apiHeaders({'Prefer':'return=minimal'}),body:JSON.stringify(payload)});
+  if(!r.ok) throw new Error(await r.text());
 }
 async function remoteDelete(id){
   const r=await fetch(HOUSES_API+'?id=eq.'+encodeURIComponent(String(id)),{method:'DELETE',headers:apiHeaders({'Prefer':'return=minimal'})});
@@ -265,8 +276,8 @@ function clearForm(){editingId=null;selectedCoords=null;$('houseName').value='';
 function setAdmin(on){adminMode=on;$('adminPanel').classList.toggle('show',on);$('adminBtn').textContent=on?'🔓 יציאה ממצב ניהול':'🔐 כניסה למצב ניהול';$('adminBtn').className=on?'danger':'secondary';render()}
 window.goHouse=id=>{const h=houses.find(x=>x.id===id);if(!h)return;map.setView([h.lat,h.lng],18);markers[id]?.openPopup();if(window.innerWidth<850)document.querySelector('.map-card').scrollIntoView({behavior:'smooth',block:'start'})};
 window.editHouse=id=>{if(!adminMode)return;const h=houses.find(x=>x.id===id);if(!h)return;editingId=id;selectedCoords=[h.lat,h.lng];$('houseName').value=h.name||'';$('street').value=h.street||'';$('kind').value=h.kind||'ממתקים';$('note').value=h.note||'';$('scary').checked=!!h.scary;$('coords').value=h.lat.toFixed(6)+', '+h.lng.toFixed(6);$('saveHouse').textContent='💾 שמירת שינויים';$('cancelEdit').style.display='inline-block';map.setView([h.lat,h.lng],18);markers[id]?.openPopup();$('houseName').focus()};
-window.deleteHouse=id=>{if(!adminMode)return;const h=houses.find(x=>x.id===id);if(!h)return;if(confirm('למחוק את '+(h.name||'הבית הזה')+' מהמפה?')){houses=houses.filter(x=>x.id!==id);persist();remoteDelete(id).then(()=>toast('הבית הוסר מהמפה')).catch(e=>{console.error(e);toast('הוסר מקומית, אבל המחיקה בענן נכשלה')});if(editingId===id)clearForm();render()}};
-map=L.map('map',{scrollWheelZoom:true}).setView(DEFAULT_CENTER,15.7);
+window.deleteHouse=async id=>{if(!adminMode)return;const h=houses.find(x=>x.id===id);if(!h)return;if(confirm('למחוק את '+(h.name||'הבית הזה')+' מהמפה?')){try{await remoteDelete(id);houses=houses.filter(x=>x.id!==id);persist();if(editingId===id)clearForm();render();toast('הבית הוסר מהמפה')}catch(e){console.error('Supabase delete failed',e);toast('המחיקה בענן נכשלה: '+(e.message||'בדקי הרשאות'))}}};
+map=L.map('map',{scrollWheelZoom:true}).setView(DEFAULT_CENTER,16);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>'}).addTo(map);
 map.on('click',e=>{if(!adminMode)return;selectedCoords=[e.latlng.lat,e.latlng.lng];$('coords').value=selectedCoords[0].toFixed(6)+', '+selectedCoords[1].toFixed(6);toast('המיקום נבחר. מלאו את הפרטים ולחצו על הוספת בית.')});
 $('saveHouse').addEventListener('click',async()=>{
@@ -275,20 +286,45 @@ $('saveHouse').addEventListener('click',async()=>{
  if(!name||!street){toast('צריך למלא שם לתצוגה וכתובת.');return}
  if(!selectedCoords){toast('קודם לחצו על המיקום המתאים במפה.');return}
  const data={name,street,kind:$('kind').value,note:$('note').value.trim(),scary:$('scary').checked,lat:selectedCoords[0],lng:selectedCoords[1]};
- let savedHouse;
- if(editingId){savedHouse=Object.assign(houses.find(h=>h.id===editingId),data);toast('הפרטים עודכנו')}
- else{savedHouse={id:(crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random())),...data};houses.push(savedHouse);toast('הבית נוסף למפה 🎃')}
- persist();clearForm();render();
- try{await remoteSave(savedHouse);toast('הבית נשמר בענן ומשותף לכולם 🎃')}
- catch(err){console.error('Supabase save failed',err);toast('הבית נשמר רק בדפדפן. בדקי את עמודות הטבלה ב‑Supabase.')}
+ const button=$('saveHouse');button.disabled=true;
+ const oldLabel=button.textContent;button.textContent='שומר…';
+ try{
+   if(editingId){
+     const existing=houses.find(h=>h.id===editingId);
+     if(!existing)throw new Error('הבית לעריכה לא נמצא');
+     const updated={...existing,...data};
+     await remoteUpdate(updated);
+     houses=houses.map(h=>h.id===editingId?updated:h);
+     toast('השינויים נשמרו בענן 🎃');
+   }else{
+     const draft={...data,id:'pending-'+Date.now()};
+     const realId=await remoteInsert(draft);
+     houses.push({...draft,id:realId});
+     toast('הבית נשמר בענן ומשותף לכולם 🎃');
+   }
+   persist();clearForm();render();
+ }catch(err){
+   console.error('Supabase save failed',err);
+   toast('השמירה נכשלה: '+(err.message||'בדקי את ההרשאות ב‑Supabase'));
+ }finally{button.disabled=false;button.textContent=oldLabel;}
 });
 $('cancelEdit').addEventListener('click',clearForm);
 $('search').addEventListener('input',renderList);
 $('adminBtn').addEventListener('click',()=>{if(adminMode){accessToken=null;setAdmin(false);clearForm();toast('יצאת ממצב ניהול')}else{$('adminEmail').value=ADMIN_EMAIL;$('password').value='';$('loginModal').classList.add('show');setTimeout(()=>$('password').focus(),50)}});
 async function login(){const email=$('adminEmail').value.trim().toLowerCase(),password=$('password').value;if(!email||!password){toast('הכניסי אימייל וסיסמה');return}try{const r=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password})});const result=await r.json();if(!r.ok||!result.access_token)throw new Error(result.msg||result.message||'פרטי ההתחברות אינם נכונים');if((result.user?.email||'').toLowerCase()!==ADMIN_EMAIL){throw new Error('לכתובת הזו אין הרשאת מנהלת')}accessToken=result.access_token;$('loginModal').classList.remove('show');setAdmin(true);toast('התחברת למצב ניהול 🧙‍♀️');}catch(err){accessToken=null;console.error('Login failed',err);toast(err.message==='לכתובת הזו אין הרשאת מנהלת'?err.message:'ההתחברות נכשלה. בדקי אימייל וסיסמה ושנוצר משתמש ב‑Supabase.')}}
 $('loginBtn').addEventListener('click',login);$('password').addEventListener('keydown',e=>{if(e.key==='Enter')login()});$('adminEmail').addEventListener('keydown',e=>{if(e.key==='Enter')login()});$('closeModal').addEventListener('click',()=>$('loginModal').classList.remove('show'));
-$('locateBtn').addEventListener('click',()=>{map.setView(DEFAULT_CENTER,15.7);toast('הוצגה שכונת חבצלת. אפשר להתקרב ולהזיז מעט אם צריך.')});
-$('printBtn').addEventListener('click',()=>{map.invalidateSize();const tiles=document.querySelectorAll('.leaflet-tile');let waited=false;const finish=()=>{if(waited)return;waited=true;setTimeout(()=>window.print(),180)};if(!tiles.length)finish();else{let pending=Array.from(tiles).filter(t=>!t.complete).length;if(!pending)finish();else{const timer=setTimeout(finish,1800);tiles.forEach(t=>{if(!t.complete){t.addEventListener('load',()=>{pending--;if(pending<=0){clearTimeout(timer);finish()}},{once:true});t.addEventListener('error',()=>{pending--;if(pending<=0){clearTimeout(timer);finish()}},{once:true})}})}}});
+$('locateBtn').addEventListener('click',()=>{map.setView(DEFAULT_CENTER,16);toast('הוצגה שכונת חבצלת. אפשר להתקרב ולהזיז מעט אם צריך.')});
+$('printBtn').addEventListener('click',()=>{
+  // Open synchronously from the click so mobile browsers do not block the print window.
+  const printWin=window.open('','_blank');
+  if(!printWin){toast('הדפסת המפה נחסמה. אפשרו חלונות קופצים ונסו שוב.');return}
+  const center=map.getCenter(), zoom=map.getZoom();
+  const printHouses=houses.filter(h=>Number.isFinite(h.lat)&&Number.isFinite(h.lng)).map(h=>({lat:h.lat,lng:h.lng,name:h.name||'בית משתתף',street:h.street||'',scary:!!h.scary}));
+  const data=JSON.stringify(printHouses).replace(/</g,'\\u003c');
+  printWin.document.open();
+  printWin.document.write(`<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>הדפסת מפת ליל כל השכנים</title><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;color:#17101f}.heading{padding:8px 12px 10px;text-align:center}.heading h1{font-size:22px;margin:0 0 4px}.heading p{margin:0;font-size:13px}#map{height:175mm;width:100%;background:#eee}.pin{font-size:25px;text-align:center;filter:drop-shadow(0 1px 2px #fff)}.leaflet-control-attribution{font-size:9px}@page{size:A4 landscape;margin:8mm}@media print{#map{height:175mm!important}.leaflet-control-zoom{display:none!important}}</style></head><body><div class="heading"><h1>🎃 ליל כל השכנים — מפת ההרפתקה</h1><p>בשכונה חבצלת · 31.10.2026</p></div><div id="map"></div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script><script>const houses=${data};const map=L.map('map',{zoomControl:false,scrollWheelZoom:false}).setView([${center.lat},${center.lng}],${zoom});L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);houses.forEach(h=>L.marker([h.lat,h.lng],{icon:L.divIcon({className:'',html:'<div class="pin">'+(h.scary?'👻':'🎃')+'</div>',iconSize:[30,34],iconAnchor:[15,30]})}).addTo(map).bindPopup('<b>'+String(h.name).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\\"':'&quot;'}[c]))+'</b><br>'+String(h.street).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))));setTimeout(()=>{map.invalidateSize();const imgs=[...document.querySelectorAll('.leaflet-tile')];let done=false;const print=()=>{if(done)return;done=true;setTimeout(()=>window.print(),500)};if(!imgs.length)print();else{let pending=imgs.filter(i=>!i.complete).length;if(!pending)print();else{const timer=setTimeout(print,6000);imgs.forEach(i=>{if(!i.complete){i.addEventListener('load',()=>{if(--pending<=0){clearTimeout(timer);print()}},{once:true});i.addEventListener('error',()=>{if(--pending<=0){clearTimeout(timer);print()}},{once:true})}})}}},700);window.onafterprint=()=>setTimeout(()=>window.close(),300);<\/script></body></html>`);
+  printWin.document.close();
+});
 $('exportBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(houses,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='halloween-houses-backup.json';a.click();URL.revokeObjectURL(a.href);toast('קובץ גיבוי הורד')});
 $('importFile').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{const data=JSON.parse(await file.text());if(!Array.isArray(data)||data.some(h=>!h.id||!Number.isFinite(h.lat)||!Number.isFinite(h.lng)))throw new Error();if(confirm('ייבוא הגיבוי יחליף את רשימת הבתים הנוכחית. להמשיך?')){houses=data;persist();clearForm();render();Promise.all(houses.map(remoteSave)).then(()=>toast('הגיבוי נטען ונשמר בענן')).catch(err=>{console.error(err);toast('הגיבוי נטען בדפדפן, אך חלק מהבתים לא נשמרו בענן')})}}catch(err){toast('לא ניתן לקרוא את קובץ הגיבוי הזה')}e.target.value=''});
 $('shareBtn').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(location.href);toast('הקישור הועתק. הבתים שמורים בענן ומופיעים לכל המשתתפים.')}catch(e){prompt('העתיקו את הקישור:',location.href)}});
