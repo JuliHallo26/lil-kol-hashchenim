@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ליל כל השכנים | בשכונה חבצלת</title>
+<link rel="preconnect" href="https://unpkg.com">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--bg:#26085a;--panel:#3a087c;--panel2:#5314a0;--orange:#ff5a00;--purple:#d783ff;--cream:#fff8ff;--muted:#e1c8f4;--line:#7139a2;--green:#b7e4a5}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% 15%,#a34de6 0%,#5213a0 35%,var(--bg) 78%);color:var(--cream);font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;min-height:100vh}
+a{color:var(--purple)}button,input,select,textarea{font:inherit}button{cursor:pointer;border:0;border-radius:12px;padding:11px 15px;font-weight:750;transition:transform .15s,opacity .15s}button:hover{transform:translateY(-1px)}.primary{background:linear-gradient(135deg,#ff9a00,#ff4c00);color:#fff}.secondary{background:#342545;color:var(--cream);border:1px solid #5b456f}.danger{background:#642c3b;color:#fff}.small{padding:7px 10px;font-size:.9rem}
+header{max-width:1250px;margin:auto;padding:28px 22px 16px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}.brand{display:flex;align-items:center;gap:13px}.logo{font-size:2.8rem;filter:drop-shadow(0 0 16px #ff8a2470)}h1{font-size:clamp(1.8rem,4vw,3rem);margin:0;line-height:1.1;letter-spacing:-.04em}.eyebrow{color:var(--orange);font-weight:800;letter-spacing:.12em;font-size:.8rem;margin-bottom:7px}.sub{color:var(--muted);margin:9px 0 0}.date-pill{border:1px solid #e6a3ff;background:linear-gradient(120deg,#6514b2,#8b26cf);border-radius:999px;padding:10px 15px;color:#fff1c7;white-space:nowrap;box-shadow:0 5px 22px #16002c66}
+main{max-width:1250px;margin:auto;padding:10px 22px 40px}.intro{display:flex;justify-content:space-between;gap:20px;align-items:end;margin:12px 0 18px;flex-wrap:wrap}.intro h2{margin:0 0 5px;font-size:1.4rem}.intro p{margin:0;color:var(--muted)}.stats{display:flex;gap:9px;flex-wrap:wrap}.stat{background:#3c126d;border:1px solid var(--line);border-radius:13px;padding:10px 14px;min-width:100px}.stat strong{display:block;color:var(--orange);font-size:1.3rem}.stat span{color:var(--muted);font-size:.8rem}
+.layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(285px,.8fr);gap:16px;align-items:stretch}.map-card,.side-card{background:linear-gradient(160deg,#54149b,#2a0753);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:0 20px 50px #0003}.map-top{padding:15px 17px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.map-top strong{font-size:1rem}.map-hint{font-size:.82rem;color:var(--muted)}#map{height:590px;width:100%;background:#21182b}.leaflet-container{font-family:inherit}.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#3b126c;color:var(--cream)}.leaflet-popup-content{margin:13px;line-height:1.5}.popup-title{font-size:1.05rem;font-weight:800;color:#ffb35f}.popup-muted{color:#c0b4d1;font-size:.9rem}.leaflet-control-attribution{font-size:10px}
+.side-card{padding:18px;display:flex;flex-direction:column;gap:15px}.side-card h3{margin:0;font-size:1.2rem}.side-intro{margin:-8px 0 0;color:var(--muted);font-size:.9rem;line-height:1.5}.search{width:100%;padding:11px 13px;border:1px solid #58436c;border-radius:11px;background:#28094e;color:var(--cream);outline:none}.search:focus,input:focus,textarea:focus,select:focus{border-color:var(--purple);box-shadow:0 0 0 3px #b28aff20}.house-list{display:flex;flex-direction:column;gap:9px;max-height:350px;overflow:auto}.house{padding:12px;border:1px solid #443453;border-radius:13px;background:#42147a;display:flex;gap:11px;align-items:flex-start}.house-icon{font-size:1.5rem}.house-body{flex:1;min-width:0}.house-name{font-weight:800}.house-address{color:var(--muted);font-size:.85rem;margin-top:2px}.house-note{font-size:.9rem;margin-top:5px;line-height:1.4}.empty{border:1px dashed #59456c;border-radius:14px;padding:24px;text-align:center;color:var(--muted);line-height:1.6}.legend{display:flex;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:.82rem}.legend span{display:flex;align-items:center;gap:5px}
+.notice{background:#4a1a82;border:1px solid #5c4770;padding:12px 13px;border-radius:12px;font-size:.85rem;line-height:1.5;color:#e0d4ed}.admin-panel{display:none;border-top:1px solid var(--line);padding-top:16px;gap:10px;flex-direction:column}.admin-panel.show{display:flex}.admin-panel h4{margin:0;font-size:1rem}.field{display:flex;flex-direction:column;gap:5px}.field label{font-size:.85rem;color:var(--muted)}.field input,.field textarea,.field select{width:100%;padding:10px 11px;border-radius:10px;border:1px solid #58436c;background:#28094e;color:var(--cream);outline:none}.field textarea{min-height:70px;resize:vertical}.row{display:flex;gap:8px}.row>*{flex:1;min-width:0}.admin-actions{display:flex;gap:7px;flex-wrap:wrap}.footer{color:#9585a9;font-size:.78rem;text-align:center;margin-top:22px;line-height:1.7}.modal-backdrop{display:none;position:fixed;inset:0;background:#08050cbb;z-index:9999;align-items:center;justify-content:center;padding:20px}.modal-backdrop.show{display:flex}.modal{width:min(410px,100%);background:#3b126c;border:1px solid #654d7c;border-radius:18px;padding:22px;box-shadow:0 25px 80px #0008}.modal h3{margin:0 0 8px}.modal p{color:var(--muted);font-size:.9rem;line-height:1.5}.modal-actions{display:flex;gap:8px;margin-top:14px}.toast{position:fixed;bottom:18px;left:18px;z-index:10000;background:#4a148c;border:1px solid #73588b;padding:12px 16px;border-radius:12px;box-shadow:0 8px 30px #0006;display:none;max-width:calc(100% - 36px)}.toast.show{display:block}
+.house-pin{background:none;border:0}.pin-wrap{width:40px;height:46px;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 3px 5px #0008);font-size:31px}.pin-wrap:after{content:"";position:absolute;width:8px;height:8px;background:#ff8a24;border-radius:50%;margin-top:35px;border:2px solid #1a1024}
+@media(max-width:850px){.layout{grid-template-columns:1fr}#map{height:55vh;min-height:380px}.side-card{order:2}.house-list{max-height:280px}header{padding-top:22px}}@media(max-width:480px){header,main{padding-left:13px;padding-right:13px}.date-pill{font-size:.85rem}.stats{width:100%}.stat{flex:1;min-width:0}#map{min-height:340px}.map-top{align-items:flex-start}.brand{align-items:flex-start}.logo{font-size:2.2rem}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><div class="logo">🎃</div><div><div class="eyebrow">🎃 HALLOWEEN · HAVATZELET</div><h1>ליל כל השכנים</h1><p class="sub">בשכונה חבצלת · יוצאים להרפתקה שכונתית</p></div></div>
+  <div class="date-pill">🧡 שבת · 31.10.26 · 17:30</div>
+</header>
+<main>
+  <section class="intro">
+    <div><h2>הבתים המשתתפים 🎃</h2><p>כל השכונה יוצאת לחגוג — מוצאים את הבתים ומתחילים בהרפתקה.</p></div>
+    <div class="stats"><div class="stat"><strong id="houseCount">0</strong><span>בתים משתתפים</span></div><div class="stat"><strong>31.10</strong><span>ליל ההאלווין</span></div></div>
+  </section>
+  <section class="layout">
+    <div class="map-card">
+      <div class="map-top"><div><strong>🗺️ מפת ההרפתקה</strong><div class="map-hint">לחצו על סמן כדי לראות פרטים על הבית</div></div><button class="secondary small" id="locateBtn">◎ הצג את האזור</button></div>
+      <div id="map" aria-label="מפת הבתים המשתתפים"></div>
+    </div>
+    <aside class="side-card">
+      <h3>🦇 מי פותח את הדלת?</h3>
+      <p class="side-intro">כאן יופיעו הבתים שאושרו להשתתף. בחרו בית כדי למצוא אותו על המפה.</p>
+      <input id="search" class="search" placeholder="🔎 חיפוש לפי שם או רחוב" aria-label="חיפוש בית">
+      <div class="legend"><span>🎃 בית משתתף</span><span>🕯️ פרטים בלחיצה</span></div>
+      <div id="houseList" class="house-list"><div class="empty">המפה עדיין מחכה לבתים הראשונים שלה…<br>המארגנת יכולה להוסיף אותם במצב ניהול.</div></div>
+      <div class="notice">✨ המפה מיועדת למשתתפי האירוע. כדי לשמור על פרטיות, מומלץ להציג שם משפחה/כינוי ומספר בית בלבד — בלי טלפונים או פרטים אישיים.</div>
+      <button class="secondary" id="adminBtn">🔐 כניסה למצב ניהול</button>
+      <div class="admin-panel" id="adminPanel">
+        <h4>🧙‍♀️ שולחן המכשפה — ניהול בתים</h4>
+        <p class="side-intro">לחצו על המפה כדי לבחור מיקום, מלאו את הפרטים ושמרו. הנתונים נשמרים בדפדפן הזה.</p>
+        <div class="field"><label for="houseName">שם לתצוגה / משפחה</label><input id="houseName" maxlength="60" placeholder="למשל: משפחת דלעת"></div>
+        <div class="row"><div class="field"><label for="street">רחוב ומספר בית</label><input id="street" list="streetOptions" maxlength="100" placeholder="בחרו/הקלידו רחוב ומספר בית"><datalist id="streetOptions">
+<option value="רחוב הגליל"></option><option value="רחוב הדגניות"></option><option value="רחוב היסמין"></option><option value="רחוב הירדן"></option><option value="רחוב הכלניות"></option><option value="רחוב הרקפת"></option><option value="רחוב הרותם"></option><option value="רחוב הנרקיסים"></option><option value="רחוב העמק"></option><option value="רחוב השרון"></option><option value="רחוב הסגליות"></option><option value="רחוב שושנת העמקים"></option><option value="רחוב עין התכלת"></option><option value="סמטת הברקן"></option>
+</datalist></div><div class="field"><label for="kind">מה מחכה לילדים?</label><select id="kind"><option value="ממתקים">🍬 ממתקים</option><option value="פעילות">🕸️ פעילות</option><option value="קישוטים">👻 קישוטים</option><option value="ממתקים ופעילות">🎃 ממתקים ופעילות</option></select></div></div>
+        <div class="field"><label for="note">הערה קצרה (לא חובה)</label><textarea id="note" maxlength="180" placeholder="למשל: להגיע אחרי 18:00"></textarea></div>
+        <div class="field"><label>מיקום על המפה</label><input id="coords" readonly placeholder="לחצו על המפה כדי לבחור מיקום"></div>
+        <div class="admin-actions"><button class="primary" id="saveHouse">＋ הוספת בית</button><button class="secondary" id="cancelEdit" style="display:none">ביטול עריכה</button></div>
+        <div class="admin-actions"><button class="secondary small" id="exportBtn">⬇ ייצוא גיבוי</button><label class="secondary small" style="cursor:pointer;border-radius:12px;padding:7px 10px">⬆ ייבוא גיבוי<input type="file" id="importFile" accept=".json,application/json" hidden></label><button class="secondary small" id="shareBtn">🔗 שיתוף קישור</button></div>
+        <p class="side-intro">טיפ: אפשר לגרור סמן קיים במצב ניהול כדי לדייק את מיקומו.</p>
+      </div>
+    </aside>
+  </section>
+  <p class="footer">נבנה באווירת ירח מלא, דלעות ומכשפות ✦ המפה מבוססת על OpenStreetMap<br>גרסת הדגמה: הנתונים נשמרים מקומית בדפדפן. כדי שכל השכונה תראה עדכונים בזמן אמת, צריך לחבר אחסון משותף ולהעלות את האתר לאינטרנט.</p>
+</main>
+<div class="modal-backdrop" id="loginModal"><div class="modal"><h3>🔐 כניסה לשולחן המכשפה</h3><p>בגרסת ההדגמה הסיסמה הראשונית היא <b>witch2026</b>. חשוב: זו אינה הגנה מאובטחת לאתר ציבורי.</p><div class="field"><label for="password">סיסמת ניהול</label><input id="password" type="password" placeholder="הקלידו סיסמה"></div><div class="modal-actions"><button class="primary" id="loginBtn">כניסה</button><button class="secondary" id="closeModal">ביטול</button></div></div></div>
+<div class="toast" id="toast" role="status"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const DEFAULT_CENTER = [31.8948,34.8113]; // Rehovot, Israel; approximate starting view only
+const STORAGE_KEY = 'halloween-neighborhood-houses-v1';
+let houses = [];
+let markers = {};
+let selectedCoords = null;
+let editingId = null;
+let adminMode = false;
+let map;
+
+function toast(msg){$('toast').textContent=msg;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),3200)}
+function safeLoad(){try{houses=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');if(!Array.isArray(houses))houses=[]}catch(e){houses=[]}}
+function persist(){localStorage.setItem(STORAGE_KEY,JSON.stringify(houses))}
+function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function icon(){return L.divIcon({className:'house-pin',html:'<div class="pin-wrap">🎃</div>',iconSize:[40,46],iconAnchor:[20,42],popupAnchor:[0,-39]})}
+function popup(h){return `<div class="popup-title">🎃 ${esc(h.name||'בית משתתף')}</div><div>${esc(h.street||'')}</div><div class="popup-muted">${esc(h.kind||'')}</div>${h.note?`<p>${esc(h.note)}</p>`:''}${adminMode?`<button class="secondary small" onclick="window.editHouse('${h.id}')">✏️ עריכה</button> <button class="danger small" onclick="window.deleteHouse('${h.id}')">🗑️ מחיקה</button>`:''}`}
+function render(){
+  Object.values(markers).forEach(m=>map.removeLayer(m));markers={};
+  houses.forEach(h=>{
+    const m=L.marker([h.lat,h.lng],{icon:icon(),draggable:adminMode}).addTo(map);
+    m.bindPopup(popup(h));markers[h.id]=m;
+    m.on('click',()=>highlight(h.id));
+    if(adminMode)m.on('dragend',e=>{const p=e.target.getLatLng();h.lat=p.lat;h.lng=p.lng;persist();if(editingId===h.id){selectedCoords=[p.lat,p.lng];$('coords').value=p.lat.toFixed(6)+', '+p.lng.toFixed(6)}m.setPopupContent(popup(h));toast('מיקום הבית עודכן')});
+  });
+  $('houseCount').textContent=houses.length;
+  renderList();
+}
+function renderList(){
+ const q=$('search').value.trim().toLowerCase();
+ const filtered=houses.filter(h=>[h.name,h.street,h.kind,h.note].join(' ').toLowerCase().includes(q));
+ $('houseList').innerHTML=filtered.length?filtered.map(h=>`<div class="house"><div class="house-icon">🎃</div><div class="house-body"><div class="house-name">${esc(h.name||'בית משתתף')}</div><div class="house-address">${esc(h.street||'כתובת לא צוינה')}</div><div class="house-note">${esc(h.kind||'')}${h.note?' · '+esc(h.note):''}</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px"><button class="secondary small" onclick="window.goHouse('${h.id}')">📍 הצג במפה</button>${adminMode?`<button class="secondary small" onclick="window.editHouse('${h.id}')">עריכה</button><button class="danger small" onclick="window.deleteHouse('${h.id}')">מחיקה</button>`:''}</div></div></div>`).join(''):`<div class="empty">${q?'לא נמצאו בתים שמתאימים לחיפוש.':'המפה עדיין מחכה לבתים הראשונים שלה…'}${adminMode?'<br>לחצו על המפה כדי לבחור מיקום ולהוסיף בית.':''}</div>`;
+}
+function clearForm(){editingId=null;selectedCoords=null;$('houseName').value='';$('street').value='';$('kind').value='ממתקים';$('note').value='';$('coords').value='';$('saveHouse').textContent='＋ הוספת בית';$('cancelEdit').style.display='none'}
+function setAdmin(on){adminMode=on;$('adminPanel').classList.toggle('show',on);$('adminBtn').textContent=on?'🔓 יציאה ממצב ניהול':'🔐 כניסה למצב ניהול';$('adminBtn').className=on?'danger':'secondary';render()}
+window.goHouse=id=>{const h=houses.find(x=>x.id===id);if(!h)return;map.setView([h.lat,h.lng],18);markers[id]?.openPopup();if(window.innerWidth<850)document.querySelector('.map-card').scrollIntoView({behavior:'smooth',block:'start'})};
+window.editHouse=id=>{if(!adminMode)return;const h=houses.find(x=>x.id===id);if(!h)return;editingId=id;selectedCoords=[h.lat,h.lng];$('houseName').value=h.name||'';$('street').value=h.street||'';$('kind').value=h.kind||'ממתקים';$('note').value=h.note||'';$('coords').value=h.lat.toFixed(6)+', '+h.lng.toFixed(6);$('saveHouse').textContent='💾 שמירת שינויים';$('cancelEdit').style.display='inline-block';map.setView([h.lat,h.lng],18);markers[id]?.openPopup();$('houseName').focus()};
+window.deleteHouse=id=>{if(!adminMode)return;const h=houses.find(x=>x.id===id);if(!h)return;if(confirm('למחוק את '+(h.name||'הבית הזה')+' מהמפה?')){houses=houses.filter(x=>x.id!==id);persist();if(editingId===id)clearForm();render();toast('הבית הוסר מהמפה')}};
+if(!window.L){$('map').innerHTML='<div style="height:100%;min-height:340px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;color:#fff;gap:14px"><div style="font-size:2.5rem">🗺️</div><strong>המפה לא נטענה בתצוגה המקדימה</strong><span>פתחו את הקובץ בדפדפן Safari עם חיבור לאינטרנט, או פתחו את המפה החיצונית.</span><a style="display:inline-block;padding:11px 16px;background:#ff6500;color:white;border-radius:12px;text-decoration:none;font-weight:700" href="https://www.openstreetmap.org/#map=14/31.8948/34.8113" target="_blank" rel="noopener">פתיחת המפה</a></div>';return}
+map=L.map('map',{scrollWheelZoom:true}).setView(DEFAULT_CENTER,14);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'}).addTo(map);
+map.on('click',e=>{if(!adminMode)return;selectedCoords=[e.latlng.lat,e.latlng.lng];$('coords').value=selectedCoords[0].toFixed(6)+', '+selectedCoords[1].toFixed(6);toast('המיקום נבחר. מלאו את הפרטים ולחצו על הוספת בית.')});
+$('saveHouse').addEventListener('click',()=>{
+ if(!adminMode)return;
+ const name=$('houseName').value.trim(),street=$('street').value.trim();
+ if(!name||!street){toast('צריך למלא שם לתצוגה וכתובת.');return}
+ if(!selectedCoords){toast('קודם לחצו על המיקום המתאים במפה.');return}
+ const data={name,street,kind:$('kind').value,note:$('note').value.trim(),lat:selectedCoords[0],lng:selectedCoords[1]};
+ if(editingId){Object.assign(houses.find(h=>h.id===editingId),data);toast('הפרטים עודכנו')}
+ else{houses.push({id:(crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random())),...data});toast('הבית נוסף למפה 🎃')}
+ persist();clearForm();render();
+});
+$('cancelEdit').addEventListener('click',clearForm);
+$('search').addEventListener('input',renderList);
+$('adminBtn').addEventListener('click',()=>{if(adminMode){setAdmin(false);clearForm();toast('יצאת ממצב ניהול')}else{$('password').value='';$('loginModal').classList.add('show');setTimeout(()=>$('password').focus(),50)}});
+function login(){if($('password').value==='witch2026'){$('loginModal').classList.remove('show');setAdmin(true);toast('ברוכה הבאה, מכשפה ראשית 🧙‍♀️')}else toast('הסיסמה לא נכונה')}
+$('loginBtn').addEventListener('click',login);$('password').addEventListener('keydown',e=>{if(e.key==='Enter')login()});$('closeModal').addEventListener('click',()=>$('loginModal').classList.remove('show'));
+$('locateBtn').addEventListener('click',()=>{map.setView(DEFAULT_CENTER,14);toast('הוצג אזור רחובות כנקודת התחלה. אפשר להזיז ולחפש במפה את האזור המדויק.')});
+$('exportBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(houses,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='halloween-houses-backup.json';a.click();URL.revokeObjectURL(a.href);toast('קובץ גיבוי הורד')});
+$('importFile').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{const data=JSON.parse(await file.text());if(!Array.isArray(data)||data.some(h=>!h.id||!Number.isFinite(h.lat)||!Number.isFinite(h.lng)))throw new Error();if(confirm('ייבוא הגיבוי יחליף את רשימת הבתים הנוכחית. להמשיך?')){houses=data;persist();clearForm();render();toast('הגיבוי נטען בהצלחה')}}catch(err){toast('לא ניתן לקרוא את קובץ הגיבוי הזה')}e.target.value=''});
+$('shareBtn').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(location.href);toast('הקישור הועתק. שימו לב: הנתונים המקומיים לא עוברים יחד עם הקישור.')}catch(e){prompt('העתיקו את הקישור:',location.href)}});
+safeLoad();render();
+})();
+</script>
+</body>
+</html>
