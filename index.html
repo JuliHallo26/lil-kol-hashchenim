@@ -135,6 +135,25 @@ main{padding-bottom:40px;}
  .map-top button{align-self:flex-start;white-space:normal;}
 }
 
+
+@media print{
+  body{background:#fff!important;color:#111!important;overflow:visible!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body:before,body:after,.decor-rail,.scene-glow,.side-card,.map-top button,.footer,#toast,#loginModal{display:none!important}
+  header,main{max-width:none!important;width:100%!important;padding:8px!important;margin:0!important;color:#111!important;text-shadow:none!important}
+  .eyebrow,h1,.sub,.intro h2,.intro p{color:#111!important;text-shadow:none!important}
+  .intro{margin:8px 0!important}
+  .stats{display:grid!important;grid-template-columns:1fr 1fr!important}
+  .stat{background:#fff!important;border:1px solid #aaa!important;color:#111!important;box-shadow:none!important}
+  .stat strong,.stat span{color:#111!important}
+  .layout{display:block!important}
+  .map-card{border:1px solid #aaa!important;box-shadow:none!important;border-radius:0!important;overflow:visible!important}
+  .map-top{display:block!important;min-height:0!important;padding:8px!important;background:#fff!important;color:#111!important}
+  .map-top strong,.map-hint{color:#111!important;text-shadow:none!important}
+  #map{height:165mm!important;width:100%!important;break-inside:avoid}
+  .leaflet-control-zoom{display:none!important}
+  a{color:#111!important}
+  @page{size:A4 landscape;margin:10mm}
+}
 </style>
 </head>
 <body>
@@ -150,7 +169,7 @@ main{padding-bottom:40px;}
   </section>
   <section class="layout">
     <div class="map-card">
-      <div class="map-top"><div><strong>🗺️ מפת ההרפתקה</strong><div class="map-hint">לחצו על סמן כדי לראות פרטים על הבית</div></div><button class="secondary small" id="locateBtn">◎ הצג את האזור</button></div>
+      <div class="map-top"><div><strong>🗺️ מפת ההרפתקה</strong><div class="map-hint">לחצו על סמן כדי לראות פרטים על הבית</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="secondary small" id="printBtn">🖨️ הדפסת המפה</button><button class="secondary small" id="locateBtn">◎ הצג את האזור</button></div></div>
       <div id="map" aria-label="מפת הבתים המשתתפים"></div>
     </div>
     <aside class="side-card">
@@ -163,7 +182,7 @@ main{padding-bottom:40px;}
       <button class="secondary" id="adminBtn">🔐 כניסה למצב ניהול</button>
       <div class="admin-panel" id="adminPanel">
         <h4>🧙‍♀️ שולחן המכשפה — ניהול בתים</h4>
-        <p class="side-intro">לחצו על המפה כדי לבחור מיקום, מלאו את הפרטים ושמרו. הנתונים נשמרים בדפדפן הזה.</p>
+        <p class="side-intro">לחצו על המפה כדי לבחור מיקום, מלאו את הפרטים ושמרו. הנתונים נשמרים בענן ומשותפים לכל מי שנכנס לקישור.</p>
         <div class="field"><label for="houseName">שם לתצוגה / משפחה</label><input id="houseName" maxlength="60" placeholder="למשל: משפחת דלעת"></div>
         <div class="row"><div class="field"><label for="street">רחוב ומספר בית</label><input id="street" list="streetOptions" maxlength="100" placeholder="בחרו/הקלידו רחוב ומספר בית"><datalist id="streetOptions">
 <option value="רחוב הגליל"></option><option value="רחוב הדגניות"></option><option value="רחוב היסמין"></option><option value="רחוב הירדן"></option><option value="רחוב הכלניות"></option><option value="רחוב הרקפת"></option><option value="רחוב הרותם"></option><option value="רחוב הנרקיסים"></option><option value="רחוב הרקפת"></option><option value="רחוב העמק"></option><option value="רחוב השרון"></option><option value="רחוב הסגליות"></option><option value="רחוב שושנת העמקים"></option><option value="רחוב הדגן"></option><option value="רחוב הרקפת"></option><option value="רחוב הרקפות"></option><option value="רחוב עין התכלת"></option><option value="סמטת הברקן"></option><option value="סמטת היקינטון"></option><option value="רחוב יוסף קרוננברג"></option><option value="רחוב הרקפת"></option><option value="רחוב הרותם"></option><option value="רחוב הכלניות"></option><option value="רחוב הרקפת"></option><option value="רחוב הדס"></option><option value="רחוב קלמניה"></option><option value="רחוב שושנת העמקים"></option><option value="רחוב הרקפת"></option><option value="אחר"></option>
@@ -186,6 +205,9 @@ main{padding-bottom:40px;}
 const $ = id => document.getElementById(id);
 const DEFAULT_CENTER = [31.87556,34.81643]; // Havatzelet, Rehovot; approximate neighborhood center
 const STORAGE_KEY = 'halloween-neighborhood-houses-v1';
+const SUPABASE_URL = 'https://usvnmbxszlgcczkpsglv.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_OtFGScU0HvNkDe1z_KyKKg_hsy0JOrm';
+const HOUSES_API = SUPABASE_URL + '/rest/v1/Houses';
 let houses = [];
 let markers = {};
 let selectedCoords = null;
@@ -195,7 +217,25 @@ let map;
 
 function toast(msg){$('toast').textContent=msg;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),3200)}
 function safeLoad(){try{houses=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');if(!Array.isArray(houses))houses=[]}catch(e){houses=[]}}
-function persist(){localStorage.setItem(STORAGE_KEY,JSON.stringify(houses))}
+function persist(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(houses))}catch(e){}}
+function apiHeaders(extra={}){return {'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json',...extra}}
+async function remoteLoad(){
+  try{
+    const r=await fetch(HOUSES_API+'?select=*&order=created_at.asc',{headers:apiHeaders()});
+    if(!r.ok)throw new Error(await r.text());
+    const rows=await r.json();
+    houses=rows.map(h=>({id:String(h.id),name:h.name||'',street:h.street||'',kind:h.kind||'ממתקים',note:h.note||'',lat:Number(h.lat),lng:Number(h.lng)})).filter(h=>Number.isFinite(h.lat)&&Number.isFinite(h.lng));
+    persist();render();
+  }catch(e){console.error('Supabase load failed',e);toast('לא הצלחתי לטעון את הבתים מהשרת. בדקי את מבנה הטבלה וההרשאות ב‑Supabase.');}
+}
+async function remoteSave(h){
+  const r=await fetch(HOUSES_API+'?on_conflict=id',{method:'POST',headers:apiHeaders({'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify({id:String(h.id),name:h.name||'',street:h.street||'',kind:h.kind||'ממתקים',note:h.note||'',lat:Number(h.lat),lng:Number(h.lng)})});
+  if(!r.ok)throw new Error(await r.text());
+}
+async function remoteDelete(id){
+  const r=await fetch(HOUSES_API+'?id=eq.'+encodeURIComponent(String(id)),{method:'DELETE',headers:apiHeaders({'Prefer':'return=minimal'})});
+  if(!r.ok)throw new Error(await r.text());
+}
 function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function icon(){return L.divIcon({className:'house-pin',html:'<div class="pin-wrap">🎃</div>',iconSize:[40,46],iconAnchor:[20,42],popupAnchor:[0,-39]})}
 function popup(h){return `<div class="popup-title">🎃 ${esc(h.name||'בית משתתף')}</div><div>${esc(h.street||'')}</div><div class="popup-muted">${esc(h.kind||'')}</div>${h.note?`<p>${esc(h.note)}</p>`:''}${adminMode?`<button class="secondary small" onclick="window.editHouse('${h.id}')">✏️ עריכה</button> <button class="danger small" onclick="window.deleteHouse('${h.id}')">🗑️ מחיקה</button>`:''}`}
@@ -205,7 +245,7 @@ function render(){
     const m=L.marker([h.lat,h.lng],{icon:icon(),draggable:adminMode}).addTo(map);
     m.bindPopup(popup(h));markers[h.id]=m;
     m.on('click',()=>highlight(h.id));
-    if(adminMode)m.on('dragend',e=>{const p=e.target.getLatLng();h.lat=p.lat;h.lng=p.lng;persist();if(editingId===h.id){selectedCoords=[p.lat,p.lng];$('coords').value=p.lat.toFixed(6)+', '+p.lng.toFixed(6)}m.setPopupContent(popup(h));toast('מיקום הבית עודכן')});
+    if(adminMode)m.on('dragend',e=>{const p=e.target.getLatLng();h.lat=p.lat;h.lng=p.lng;persist();remoteSave(h).catch(e=>{console.error(e);toast('המיקום נשמר מקומית, אבל לא הצליח להישמר בענן')});if(editingId===h.id){selectedCoords=[p.lat,p.lng];$('coords').value=p.lat.toFixed(6)+', '+p.lng.toFixed(6)}m.setPopupContent(popup(h));toast('מיקום הבית עודכן')});
   });
   $('houseCount').textContent=houses.length;
   renderList();
@@ -219,19 +259,22 @@ function clearForm(){editingId=null;selectedCoords=null;$('houseName').value='';
 function setAdmin(on){adminMode=on;$('adminPanel').classList.toggle('show',on);$('adminBtn').textContent=on?'🔓 יציאה ממצב ניהול':'🔐 כניסה למצב ניהול';$('adminBtn').className=on?'danger':'secondary';render()}
 window.goHouse=id=>{const h=houses.find(x=>x.id===id);if(!h)return;map.setView([h.lat,h.lng],18);markers[id]?.openPopup();if(window.innerWidth<850)document.querySelector('.map-card').scrollIntoView({behavior:'smooth',block:'start'})};
 window.editHouse=id=>{if(!adminMode)return;const h=houses.find(x=>x.id===id);if(!h)return;editingId=id;selectedCoords=[h.lat,h.lng];$('houseName').value=h.name||'';$('street').value=h.street||'';$('kind').value=h.kind||'ממתקים';$('note').value=h.note||'';$('coords').value=h.lat.toFixed(6)+', '+h.lng.toFixed(6);$('saveHouse').textContent='💾 שמירת שינויים';$('cancelEdit').style.display='inline-block';map.setView([h.lat,h.lng],18);markers[id]?.openPopup();$('houseName').focus()};
-window.deleteHouse=id=>{if(!adminMode)return;const h=houses.find(x=>x.id===id);if(!h)return;if(confirm('למחוק את '+(h.name||'הבית הזה')+' מהמפה?')){houses=houses.filter(x=>x.id!==id);persist();if(editingId===id)clearForm();render();toast('הבית הוסר מהמפה')}};
+window.deleteHouse=id=>{if(!adminMode)return;const h=houses.find(x=>x.id===id);if(!h)return;if(confirm('למחוק את '+(h.name||'הבית הזה')+' מהמפה?')){houses=houses.filter(x=>x.id!==id);persist();remoteDelete(id).then(()=>toast('הבית הוסר מהמפה')).catch(e=>{console.error(e);toast('הוסר מקומית, אבל המחיקה בענן נכשלה')});if(editingId===id)clearForm();render()}};
 map=L.map('map',{scrollWheelZoom:true}).setView(DEFAULT_CENTER,16);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>'}).addTo(map);
 map.on('click',e=>{if(!adminMode)return;selectedCoords=[e.latlng.lat,e.latlng.lng];$('coords').value=selectedCoords[0].toFixed(6)+', '+selectedCoords[1].toFixed(6);toast('המיקום נבחר. מלאו את הפרטים ולחצו על הוספת בית.')});
-$('saveHouse').addEventListener('click',()=>{
+$('saveHouse').addEventListener('click',async()=>{
  if(!adminMode)return;
  const name=$('houseName').value.trim(),street=$('street').value.trim();
  if(!name||!street){toast('צריך למלא שם לתצוגה וכתובת.');return}
  if(!selectedCoords){toast('קודם לחצו על המיקום המתאים במפה.');return}
  const data={name,street,kind:$('kind').value,note:$('note').value.trim(),lat:selectedCoords[0],lng:selectedCoords[1]};
- if(editingId){Object.assign(houses.find(h=>h.id===editingId),data);toast('הפרטים עודכנו')}
- else{houses.push({id:(crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random())),...data});toast('הבית נוסף למפה 🎃')}
+ let savedHouse;
+ if(editingId){savedHouse=Object.assign(houses.find(h=>h.id===editingId),data);toast('הפרטים עודכנו')}
+ else{savedHouse={id:(crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random())),...data};houses.push(savedHouse);toast('הבית נוסף למפה 🎃')}
  persist();clearForm();render();
+ try{await remoteSave(savedHouse);toast('הבית נשמר בענן ומשותף לכולם 🎃')}
+ catch(err){console.error('Supabase save failed',err);toast('הבית נשמר רק בדפדפן. בדקי את עמודות הטבלה ב‑Supabase.')}
 });
 $('cancelEdit').addEventListener('click',clearForm);
 $('search').addEventListener('input',renderList);
@@ -239,10 +282,11 @@ $('adminBtn').addEventListener('click',()=>{if(adminMode){setAdmin(false);clearF
 function login(){if($('password').value==='witch2026'){$('loginModal').classList.remove('show');setAdmin(true);toast('ברוכה הבאה, מכשפה ראשית 🧙‍♀️')}else toast('הסיסמה לא נכונה')}
 $('loginBtn').addEventListener('click',login);$('password').addEventListener('keydown',e=>{if(e.key==='Enter')login()});$('closeModal').addEventListener('click',()=>$('loginModal').classList.remove('show'));
 $('locateBtn').addEventListener('click',()=>{map.setView(DEFAULT_CENTER,16);toast('הוצגה שכונת חבצלת. אפשר להתקרב ולהזיז מעט אם צריך.')});
+$('printBtn').addEventListener('click',()=>{map.invalidateSize();setTimeout(()=>window.print(),250)});
 $('exportBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(houses,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='halloween-houses-backup.json';a.click();URL.revokeObjectURL(a.href);toast('קובץ גיבוי הורד')});
-$('importFile').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{const data=JSON.parse(await file.text());if(!Array.isArray(data)||data.some(h=>!h.id||!Number.isFinite(h.lat)||!Number.isFinite(h.lng)))throw new Error();if(confirm('ייבוא הגיבוי יחליף את רשימת הבתים הנוכחית. להמשיך?')){houses=data;persist();clearForm();render();toast('הגיבוי נטען בהצלחה')}}catch(err){toast('לא ניתן לקרוא את קובץ הגיבוי הזה')}e.target.value=''});
-$('shareBtn').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(location.href);toast('הקישור הועתק. שימו לב: הנתונים המקומיים לא עוברים יחד עם הקישור.')}catch(e){prompt('העתיקו את הקישור:',location.href)}});
-safeLoad();render();
+$('importFile').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{const data=JSON.parse(await file.text());if(!Array.isArray(data)||data.some(h=>!h.id||!Number.isFinite(h.lat)||!Number.isFinite(h.lng)))throw new Error();if(confirm('ייבוא הגיבוי יחליף את רשימת הבתים הנוכחית. להמשיך?')){houses=data;persist();clearForm();render();Promise.all(houses.map(remoteSave)).then(()=>toast('הגיבוי נטען ונשמר בענן')).catch(err=>{console.error(err);toast('הגיבוי נטען בדפדפן, אך חלק מהבתים לא נשמרו בענן')})}}catch(err){toast('לא ניתן לקרוא את קובץ הגיבוי הזה')}e.target.value=''});
+$('shareBtn').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(location.href);toast('הקישור הועתק. הבתים שמורים בענן ומופיעים לכל המשתתפים.')}catch(e){prompt('העתיקו את הקישור:',location.href)}});
+safeLoad();render();remoteLoad();
 })();
 </script>
 </body>
