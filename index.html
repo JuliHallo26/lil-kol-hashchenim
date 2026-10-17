@@ -230,14 +230,14 @@ async function remoteLoad(){
   if(!r.ok) throw new Error(await r.text());
   const rows=await r.json();
   houses=rows.map(h=>({
-    id:String(h.id), name:h.Name||'', street:h.Address||'', kind:'ממתקים', note:'',
+    id:String(h.id), name:h.Name||'', street:h.Address||'', kind:h.kind||'ממתקים', note:h.note||'',
     scary:h.scary===true, lat:Number(h.Latitude), lng:Number(h.Longitud),
     participating:h.Is_participating!==false
   })).filter(h=>h.participating&&Number.isFinite(h.lat)&&Number.isFinite(h.lng));
   persist();render();
 }
 async function remoteInsert(h){
-  const payload={Name:h.name||'',Address:h.street||'',Latitude:Number(h.lat),Longitud:Number(h.lng),Is_participating:true,scary:!!h.scary};
+  const payload={Name:h.name||'',Address:h.street||'',Latitude:Number(h.lat),Longitud:Number(h.lng),Is_participating:true,scary:!!h.scary,kind:h.kind||'ממתקים',note:h.note||''};
   const r=await fetch(HOUSES_API+'?select=id',{method:'POST',headers:apiHeaders({'Prefer':'return=representation'}),body:JSON.stringify(payload)});
   if(!r.ok) throw new Error(await r.text());
   const rows=await r.json();
@@ -245,7 +245,7 @@ async function remoteInsert(h){
   return String(rows[0].id);
 }
 async function remoteUpdate(h){
-  const payload={Name:h.name||'',Address:h.street||'',Latitude:Number(h.lat),Longitud:Number(h.lng),Is_participating:true,scary:!!h.scary};
+  const payload={Name:h.name||'',Address:h.street||'',Latitude:Number(h.lat),Longitud:Number(h.lng),Is_participating:true,scary:!!h.scary,kind:h.kind||'ממתקים',note:h.note||''};
   const r=await fetch(HOUSES_API+'?id=eq.'+encodeURIComponent(String(h.id)),{method:'PATCH',headers:apiHeaders({'Prefer':'return=minimal'}),body:JSON.stringify(payload)});
   if(!r.ok) throw new Error(await r.text());
 }
@@ -322,7 +322,27 @@ $('printBtn').addEventListener('click',()=>{
   const printHouses=houses.filter(h=>Number.isFinite(h.lat)&&Number.isFinite(h.lng)).map(h=>({lat:h.lat,lng:h.lng,name:h.name||'בית משתתף',street:h.street||'',scary:!!h.scary}));
   const data=JSON.stringify(printHouses).replace(/</g,'\\u003c');
   printWin.document.open();
-  printWin.document.write(`<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>הדפסת מפת ליל כל השכנים</title><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;color:#17101f}.heading{padding:8px 12px 10px;text-align:center}.heading h1{font-size:22px;margin:0 0 4px}.heading p{margin:0;font-size:13px}#map{height:175mm;width:100%;background:#eee}.pin{font-size:25px;text-align:center;filter:drop-shadow(0 1px 2px #fff)}.leaflet-control-attribution{font-size:9px}@page{size:A4 landscape;margin:8mm}@media print{#map{height:175mm!important}.leaflet-control-zoom{display:none!important}}</style></head><body><div class="heading"><h1>🎃 ליל כל השכנים — מפת ההרפתקה</h1><p>בשכונה חבצלת · 31.10.2026</p></div><div id="map"></div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script><script>const houses=${data};const map=L.map('map',{zoomControl:false,scrollWheelZoom:false}).setView([${center.lat},${center.lng}],${zoom});L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);houses.forEach(h=>L.marker([h.lat,h.lng],{icon:L.divIcon({className:'',html:'<div class="pin">'+(h.scary?'👻':'🎃')+'</div>',iconSize:[30,34],iconAnchor:[15,30]})}).addTo(map).bindPopup('<b>'+String(h.name).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\\"':'&quot;'}[c]))+'</b><br>'+String(h.street).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))));setTimeout(()=>{map.invalidateSize();const imgs=[...document.querySelectorAll('.leaflet-tile')];let done=false;const print=()=>{if(done)return;done=true;setTimeout(()=>window.print(),500)};if(!imgs.length)print();else{let pending=imgs.filter(i=>!i.complete).length;if(!pending)print();else{const timer=setTimeout(print,6000);imgs.forEach(i=>{if(!i.complete){i.addEventListener('load',()=>{if(--pending<=0){clearTimeout(timer);print()}},{once:true});i.addEventListener('error',()=>{if(--pending<=0){clearTimeout(timer);print()}},{once:true})}})}}},700);window.onafterprint=()=>setTimeout(()=>window.close(),300);<\/script></body></html>`);
+  printWin.document.write(`<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>הדפסת מפת ליל כל השכנים</title><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>
+*{box-sizing:border-box}
+:root{--ink:#21152f;--purple:#352044;--orange:#ef7b28;--cream:#fff8ec;--muted:#6e6078}
+html,body{margin:0;padding:0;font-family:Arial,sans-serif;color:var(--ink);background:#fff}
+.sheet{padding:0;max-width:100%;border:1px solid #d8c6df;border-radius:14px;overflow:hidden;background:var(--cream)}
+.heading{position:relative;padding:8mm 10mm 5mm;text-align:center;color:#fff;background:linear-gradient(120deg,#25152f,#4b2b60 62%,#29162e);border-bottom:4px solid var(--orange)}
+.heading:before,.heading:after{content:'✦  ✧  🎃  ✧  ✦';position:absolute;top:7mm;font-size:13px;color:#ffc477;letter-spacing:2px}
+.heading:before{right:8mm}.heading:after{left:8mm}
+.kicker{font-size:9pt;font-weight:bold;letter-spacing:2px;color:#ffc477;margin:0 0 2mm}
+.heading h1{font-size:25pt;line-height:1.15;margin:0 0 2mm;font-weight:900}
+.heading p{margin:0;font-size:11pt;color:#f7eafa}
+.subline{display:flex;justify-content:space-between;align-items:center;gap:8mm;padding:3mm 8mm;background:#fff0dc;border-bottom:1px solid #e7d3bc;font-size:9pt;font-weight:bold;color:#4b3158}
+.legend{white-space:nowrap}.legend span{margin-inline-start:4mm}
+#map{height:153mm;width:100%;background:#f1eaf2;border:5px solid #fff;outline:1px solid #d8c6df;outline-offset:-6px}
+.pin{font-size:25px;text-align:center;filter:drop-shadow(0 2px 2px #fff);text-shadow:0 0 3px #fff,0 0 5px #fff}
+.leaflet-control-attribution{font-size:8px!important;background:rgba(255,255,255,.8)!important}
+.footer{display:flex;justify-content:space-between;align-items:center;padding:3mm 8mm;background:#2e1c3a;color:#fff;font-size:8.5pt}
+.footer strong{color:#ffc477}.footer .spell{letter-spacing:1px;color:#e6d8ef}
+@page{size:A4 landscape;margin:6mm}
+@media print{html,body{width:100%;height:auto;background:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.sheet{border:1px solid #d8c6df;border-radius:10px;overflow:hidden}.heading{padding:6mm 10mm 4mm}.heading h1{font-size:23pt}#map{height:153mm!important;break-inside:avoid}.leaflet-control-zoom{display:none!important}.subline,.footer,.heading{ -webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style></head><body><div class="sheet"><div class="heading"><div class="kicker">NEIGHBORHOOD HALLOWEEN NIGHT</div><h1>🎃 ליל כל השכנים</h1><p>מפת ההרפתקה · שכונת חבצלת · 31.10.2026</p></div><div class="subline"><span>🕠 מתחילים בשעה 17:30</span><span class="legend"><span>🎃 בית משתתף</span><span>👻 בית מפחיד</span></span><span>שמרו על הקסם — והסתובבו בזהירות!</span></div><div id="map"></div><div class="footer"><span><strong>ליל כל השכנים</strong> · חגיגת Halloween שכונתית</span><span class="spell">TRICK OR TREAT · HAVE FUN!</span></div></div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script><script>const houses=${data};const map=L.map('map',{zoomControl:false,scrollWheelZoom:false}).setView([${center.lat},${center.lng}],${zoom});L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);houses.forEach(h=>L.marker([h.lat,h.lng],{icon:L.divIcon({className:'',html:'<div class="pin">'+(h.scary?'👻':'🎃')+'</div>',iconSize:[30,34],iconAnchor:[15,30]})}).addTo(map).bindPopup('<b>'+String(h.name).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\\"':'&quot;'}[c]))+'</b><br>'+String(h.street).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))));setTimeout(()=>{map.invalidateSize();const imgs=[...document.querySelectorAll('.leaflet-tile')];let done=false;const print=()=>{if(done)return;done=true;setTimeout(()=>window.print(),500)};if(!imgs.length)print();else{let pending=imgs.filter(i=>!i.complete).length;if(!pending)print();else{const timer=setTimeout(print,6000);imgs.forEach(i=>{if(!i.complete){i.addEventListener('load',()=>{if(--pending<=0){clearTimeout(timer);print()}},{once:true});i.addEventListener('error',()=>{if(--pending<=0){clearTimeout(timer);print()}},{once:true})}})}}},700);window.onafterprint=()=>setTimeout(()=>window.close(),300);<\/script></body></html>`);
   printWin.document.close();
 });
 $('exportBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(houses,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='halloween-houses-backup.json';a.click();URL.revokeObjectURL(a.href);toast('קובץ גיבוי הורד')});
