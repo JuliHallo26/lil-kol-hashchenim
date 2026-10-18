@@ -172,7 +172,7 @@ main{padding-bottom:40px;}
   </section>
   <section class="layout">
     <div class="map-card">
-      <div class="map-top"><div><strong>🗺️ מפת ההרפתקה</strong><div class="map-hint">לחצו על סמן כדי לראות פרטים על הבית</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="secondary small" id="printBtn">🖨️ הדפסת המפה</button><button class="secondary small" id="locateBtn">◎ הצג את האזור</button></div></div>
+      <div class="map-top"><div><strong>🗺️ מפת ההרפתקה</strong><div class="map-hint">לחצו על סמן כדי לראות פרטים על הבית</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="secondary small" id="printBtn">🖨️ הדפסת המפה</button><button class="secondary small" id="locateBtn">◎ הצג את האזור</button><button class="secondary small" id="myLocationBtn">📍 המיקום שלי</button></div></div>
       <div id="map" aria-label="מפת הבתים המשתתפים"></div>
     </div>
     <aside class="side-card">
@@ -313,37 +313,30 @@ $('search').addEventListener('input',renderList);
 $('adminBtn').addEventListener('click',()=>{if(adminMode){accessToken=null;setAdmin(false);clearForm();toast('יצאת ממצב ניהול')}else{$('adminEmail').value=ADMIN_EMAIL;$('password').value='';$('loginModal').classList.add('show');setTimeout(()=>$('password').focus(),50)}});
 async function login(){const email=$('adminEmail').value.trim().toLowerCase(),password=$('password').value;if(!email||!password){toast('הכניסי אימייל וסיסמה');return}try{const r=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password})});const result=await r.json();if(!r.ok||!result.access_token)throw new Error(result.msg||result.message||'פרטי ההתחברות אינם נכונים');if((result.user?.email||'').toLowerCase()!==ADMIN_EMAIL){throw new Error('לכתובת הזו אין הרשאת מנהלת')}accessToken=result.access_token;$('loginModal').classList.remove('show');setAdmin(true);toast('התחברת למצב ניהול 🧙‍♀️');}catch(err){accessToken=null;console.error('Login failed',err);toast(err.message==='לכתובת הזו אין הרשאת מנהלת'?err.message:'ההתחברות נכשלה. בדקי אימייל וסיסמה ושנוצר משתמש ב‑Supabase.')}}
 $('loginBtn').addEventListener('click',login);$('password').addEventListener('keydown',e=>{if(e.key==='Enter')login()});$('adminEmail').addEventListener('keydown',e=>{if(e.key==='Enter')login()});$('closeModal').addEventListener('click',()=>$('loginModal').classList.remove('show'));
-$('locateBtn').addEventListener('click',()=>{map.setView(DEFAULT_CENTER,16);toast('הוצגה שכונת חבצלת. אפשר להתקרב ולהזיז מעט אם צריך.')});
+function showWholeNeighborhood(){
+ const pts=houses.filter(h=>Number.isFinite(h.lat)&&Number.isFinite(h.lng)).map(h=>[h.lat,h.lng]);
+ if(pts.length>=2){const bounds=L.latLngBounds(pts);map.fitBounds(bounds,{padding:[38,38],maxZoom:16});}
+ else map.setView(DEFAULT_CENTER,16);
+ toast('הוצגה השכונה וכל הבתים המשתתפים');
+}
+$('locateBtn').addEventListener('click',showWholeNeighborhood);
+let liveMarker=null, liveCircle=null, liveWatch=null;
+$('myLocationBtn').addEventListener('click',()=>{
+ if(!navigator.geolocation){toast('המכשיר לא תומך בשיתוף מיקום');return}
+ if(liveWatch!==null){navigator.geolocation.clearWatch(liveWatch);liveWatch=null;if(liveMarker)map.removeLayer(liveMarker);if(liveCircle)map.removeLayer(liveCircle);liveMarker=liveCircle=null;$('myLocationBtn').textContent='📍 המיקום שלי';toast('עדכון המיקום הופסק');return}
+ $('myLocationBtn').textContent='✕ הפסקת מיקום';
+ liveWatch=navigator.geolocation.watchPosition(pos=>{const ll=[pos.coords.latitude,pos.coords.longitude];if(!liveMarker)liveMarker=L.circleMarker(ll,{radius:8,color:'#fff',weight:3,fillColor:'#1677ff',fillOpacity:1}).addTo(map).bindPopup('📍 אתם כאן');else liveMarker.setLatLng(ll);if(!liveCircle)liveCircle=L.circle(ll,{radius:Math.max(pos.coords.accuracy||30,15),color:'#1677ff',weight:1,fillColor:'#1677ff',fillOpacity:.12}).addTo(map);else{liveCircle.setLatLng(ll);liveCircle.setRadius(Math.max(pos.coords.accuracy||30,15))}map.panTo(ll);},err=>{toast(err.code===1?'צריך לאשר לאתר גישה למיקום בהגדרות הטלפון.':'לא ניתן לקבל מיקום כרגע. בדקו קליטת GPS ונסו שוב.');if(liveWatch!==null)navigator.geolocation.clearWatch(liveWatch);liveWatch=null;$('myLocationBtn').textContent='📍 המיקום שלי';},{enableHighAccuracy:true,maximumAge:3000,timeout:15000});
+});
 $('printBtn').addEventListener('click',()=>{
-  // Open synchronously from the click so mobile browsers do not block the print window.
-  const printWin=window.open('','_blank');
-  if(!printWin){toast('הדפסת המפה נחסמה. אפשרו חלונות קופצים ונסו שוב.');return}
-  const center=map.getCenter(), zoom=map.getZoom();
-  const printHouses=houses.filter(h=>Number.isFinite(h.lat)&&Number.isFinite(h.lng)).map(h=>({lat:h.lat,lng:h.lng,name:h.name||'בית משתתף',street:h.street||'',scary:!!h.scary}));
-  const data=JSON.stringify(printHouses).replace(/</g,'\\u003c');
-  printWin.document.open();
-  printWin.document.write(`<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>הדפסת מפת ליל כל השכנים</title><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>
-*{box-sizing:border-box}
-:root{--ink:#21152f;--purple:#352044;--orange:#ef7b28;--cream:#fff8ec;--muted:#6e6078}
-html,body{margin:0;padding:0;font-family:Arial,sans-serif;color:var(--ink);background:#fff}
-.sheet{padding:0;max-width:100%;border:1px solid #d8c6df;border-radius:14px;overflow:hidden;background:var(--cream)}
-.heading{position:relative;padding:8mm 10mm 5mm;text-align:center;color:#fff;background:linear-gradient(120deg,#25152f,#4b2b60 62%,#29162e);border-bottom:4px solid var(--orange)}
-.heading:before,.heading:after{content:'✦  ✧  🎃  ✧  ✦';position:absolute;top:7mm;font-size:13px;color:#ffc477;letter-spacing:2px}
-.heading:before{right:8mm}.heading:after{left:8mm}
-.kicker{font-size:9pt;font-weight:bold;letter-spacing:2px;color:#ffc477;margin:0 0 2mm}
-.heading h1{font-size:25pt;line-height:1.15;margin:0 0 2mm;font-weight:900}
-.heading p{margin:0;font-size:11pt;color:#f7eafa}
-.subline{display:flex;justify-content:space-between;align-items:center;gap:8mm;padding:3mm 8mm;background:#fff0dc;border-bottom:1px solid #e7d3bc;font-size:9pt;font-weight:bold;color:#4b3158}
-.legend{white-space:nowrap}.legend span{margin-inline-start:4mm}
-#map{height:153mm;width:100%;background:#f1eaf2;border:5px solid #fff;outline:1px solid #d8c6df;outline-offset:-6px}
-.pin{font-size:25px;text-align:center;filter:drop-shadow(0 2px 2px #fff);text-shadow:0 0 3px #fff,0 0 5px #fff}
-.leaflet-control-attribution{font-size:8px!important;background:rgba(255,255,255,.8)!important}
-.footer{display:flex;justify-content:space-between;align-items:center;padding:3mm 8mm;background:#2e1c3a;color:#fff;font-size:8.5pt}
-.footer strong{color:#ffc477}.footer .spell{letter-spacing:1px;color:#e6d8ef}
-@page{size:A4 landscape;margin:6mm}
-@media print{html,body{width:100%;height:auto;background:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.sheet{border:1px solid #d8c6df;border-radius:10px;overflow:hidden}.heading{padding:6mm 10mm 4mm}.heading h1{font-size:23pt}#map{height:153mm!important;break-inside:avoid}.leaflet-control-zoom{display:none!important}.subline,.footer,.heading{ -webkit-print-color-adjust:exact;print-color-adjust:exact}}
-</style></head><body><div class="sheet"><div class="heading"><div class="kicker">NEIGHBORHOOD HALLOWEEN NIGHT</div><h1>🎃 ליל כל השכנים</h1><p>מפת ההרפתקה · שכונת חבצלת · 31.10.2026</p></div><div class="subline"><span>🕠 מתחילים בשעה 17:30</span><span class="legend"><span>🎃 בית משתתף</span><span>👻 בית מפחיד</span></span><span>שמרו על הקסם — והסתובבו בזהירות!</span></div><div id="map"></div><div class="footer"><span><strong>ליל כל השכנים</strong> · חגיגת Halloween שכונתית</span><span class="spell">TRICK OR TREAT · HAVE FUN!</span></div></div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script><script>const houses=${data};const map=L.map('map',{zoomControl:false,scrollWheelZoom:false}).setView([${center.lat},${center.lng}],${zoom});L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);houses.forEach(h=>L.marker([h.lat,h.lng],{icon:L.divIcon({className:'',html:'<div class="pin">'+(h.scary?'👻':'🎃')+'</div>',iconSize:[30,34],iconAnchor:[15,30]})}).addTo(map).bindPopup('<b>'+String(h.name).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\\"':'&quot;'}[c]))+'</b><br>'+String(h.street).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))));setTimeout(()=>{map.invalidateSize();const imgs=[...document.querySelectorAll('.leaflet-tile')];let done=false;const print=()=>{if(done)return;done=true;setTimeout(()=>window.print(),500)};if(!imgs.length)print();else{let pending=imgs.filter(i=>!i.complete).length;if(!pending)print();else{const timer=setTimeout(print,6000);imgs.forEach(i=>{if(!i.complete){i.addEventListener('load',()=>{if(--pending<=0){clearTimeout(timer);print()}},{once:true});i.addEventListener('error',()=>{if(--pending<=0){clearTimeout(timer);print()}},{once:true})}})}}},700);window.onafterprint=()=>setTimeout(()=>window.close(),300);<\/script></body></html>`);
-  printWin.document.close();
+ const printWin=window.open('','_blank');if(!printWin){toast('הדפסת המפה נחסמה. אפשרו חלונות קופצים ונסו שוב.');return}
+ const printHouses=houses.filter(h=>Number.isFinite(h.lat)&&Number.isFinite(h.lng)).map(h=>({lat:h.lat,lng:h.lng,name:h.name||'בית משתתף',street:h.street||'',kind:h.kind||'ממתקים',note:h.note||'',scary:!!h.scary}));
+ const data=JSON.stringify(printHouses).replace(/</g,'\\u003c');
+ const center=map.getCenter();
+ printWin.document.open();
+ printWin.document.write(`<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>מפת ליל כל השכנים</title><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;color:#25162f;background:#fff8ef}.heading{text-align:center;padding:5mm;background:#30203b;color:white;border-bottom:4px solid #f28a32}.heading h1{margin:0;font-size:24pt}.heading p{margin:2mm 0 0}.legend{padding:3mm 6mm;background:#ffefd9;font-weight:bold;display:flex;gap:6mm;flex-wrap:wrap}.content{display:grid;grid-template-columns:1.55fr 1fr;gap:4mm;padding:4mm}.mapwrap{border:1px solid #d8c6df;border-radius:8px;overflow:hidden}#map{height:160mm;width:100%;background:#eee}.list{display:grid;grid-template-columns:1fr;gap:2mm;align-content:start}.house{background:#fff;border:1px solid #e2d5e7;border-right:4px solid #f28a32;border-radius:5px;padding:2.5mm;font-size:9pt;break-inside:avoid}.house h3{margin:0 0 1mm;font-size:11pt}.house p{margin:1mm 0;line-height:1.35}.muted{color:#65556e}.pin{font-size:24px;text-shadow:0 0 3px white,0 0 5px white;text-align:center}.footer{text-align:center;padding:2mm;color:#5e4b67;font-size:8pt}@page{size:A4 landscape;margin:5mm}@media print{body{background:white}.content{padding:3mm;gap:3mm}.heading{padding:4mm}#map{height:160mm!important}.leaflet-control-zoom{display:none!important}.house{font-size:8.5pt}}
+</style></head><body><header class="heading"><h1>🎃 ליל כל השכנים</h1><p>מפת ההרפתקה · שכונת חבצלת · שבת 31.10.2026 · 17:30</p></header><div class="legend"><span>🎃 בית משתתף</span><span>👻 בית מפחיד</span><span>🍬 ממתקים</span><span>🕸️ פעילות</span><span>📝 פרטים והערות לצד המפה</span></div><div class="content"><div class="mapwrap"><div id="map"></div></div><section class="list">${printHouses.map((h,i)=>`<article class="house"><h3>${h.scary?'👻':'🎃'} ${esc(h.name)}</h3><p class="muted">${esc(h.street||'כתובת לא צוינה')}</p><p><b>${esc(h.kind)}</b>${h.scary?' · מפחיד במיוחד':''}</p>${h.note?`<p>📝 ${esc(h.note)}</p>`:''}</article>`).join('')}</section></div><div class="footer">ליל כל השכנים · חגיגת Halloween שכונתית · הסתובבו בזהירות!</div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script><script>const houses=${data};const map=L.map('map',{zoomControl:false,scrollWheelZoom:false}).setView([${center.lat},${center.lng}],16);L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'&copy; OpenStreetMap'}).addTo(map);houses.forEach(h=>L.marker([h.lat,h.lng],{icon:L.divIcon({className:'',html:'<div class="pin">'+(h.scary?'👻':'🎃')+'</div>',iconSize:[30,34],iconAnchor:[15,30]})}).addTo(map));if(houses.length>1){map.fitBounds(L.latLngBounds(houses.map(h=>[h.lat,h.lng])),{padding:[20,20],maxZoom:17})}setTimeout(()=>{map.invalidateSize();setTimeout(()=>window.print(),1200)},900);window.onafterprint=()=>setTimeout(()=>window.close(),300);<\/script></body></html>`);
+ printWin.document.close();
 });
 $('exportBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(houses,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='halloween-houses-backup.json';a.click();URL.revokeObjectURL(a.href);toast('קובץ גיבוי הורד')});
 $('importFile').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{const data=JSON.parse(await file.text());if(!Array.isArray(data)||data.some(h=>!h.id||!Number.isFinite(h.lat)||!Number.isFinite(h.lng)))throw new Error();if(confirm('ייבוא הגיבוי יחליף את רשימת הבתים הנוכחית. להמשיך?')){houses=data;persist();clearForm();render();Promise.all(houses.map(remoteSave)).then(()=>toast('הגיבוי נטען ונשמר בענן')).catch(err=>{console.error(err);toast('הגיבוי נטען בדפדפן, אך חלק מהבתים לא נשמרו בענן')})}}catch(err){toast('לא ניתן לקרוא את קובץ הגיבוי הזה')}e.target.value=''});
