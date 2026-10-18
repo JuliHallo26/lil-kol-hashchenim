@@ -138,14 +138,21 @@ main{padding-bottom:40px;}
 
 @media print{
   body{background:#fff!important;color:#111!important;overflow:visible!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  body:before,body:after,.decor-rail,.scene-glow,.side-card,.map-top button,.footer,#toast,#loginModal{display:none!important}
+  body:before,body:after,.decor-rail,.scene-glow,.map-top button,.footer,#toast,#loginModal,.side-card .search,.side-card .admin-panel,.side-card #adminBtn,.side-card .notice,.house button{display:none!important}
   header,main{max-width:none!important;width:100%!important;padding:8px!important;margin:0!important;color:#111!important;text-shadow:none!important}
   .eyebrow,h1,.sub,.intro h2,.intro p{color:#111!important;text-shadow:none!important}
   .intro{margin:8px 0!important}
   .stats{display:grid!important;grid-template-columns:1fr 1fr!important}
   .stat{background:#fff!important;border:1px solid #aaa!important;color:#111!important;box-shadow:none!important}
   .stat strong,.stat span{color:#111!important}
-  .layout{display:block!important}
+  .layout{display:flex!important;flex-direction:column!important;gap:8px!important}
+  .map-card{order:1!important;width:100%!important;break-inside:avoid}
+  .side-card{display:block!important;order:2!important;width:100%!important;max-width:none!important;margin:0!important;padding:8px!important;background:#fff!important;color:#111!important;border:1px solid #aaa!important;box-shadow:none!important}
+  .side-card h3,.side-intro{color:#111!important;text-shadow:none!important}
+  .legend{display:flex!important;flex-direction:row!important;flex-wrap:wrap!important;gap:8px 16px!important;background:#fff!important;color:#111!important;padding:4px 0!important}
+  .house-list{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:5px!important}
+  .house{break-inside:avoid!important;border:1px solid #bbb!important;background:#fff!important;color:#111!important;padding:5px!important}
+  .house-name,.house-address,.house-note{color:#111!important}
   .map-card{border:1px solid #aaa!important;box-shadow:none!important;border-radius:0!important;overflow:visible!important}
   .map-top{display:block!important;min-height:0!important;padding:8px!important;background:#fff!important;color:#111!important}
   .map-top strong,.map-hint{color:#111!important;text-shadow:none!important}
@@ -347,9 +354,13 @@ $('exportBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify
 $('importFile').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{const data=JSON.parse(await file.text());if(!Array.isArray(data)||data.some(h=>!h.id||!Number.isFinite(h.lat)||!Number.isFinite(h.lng)))throw new Error();if(confirm('ייבוא הגיבוי יחליף את רשימת הבתים הנוכחית. להמשיך?')){houses=data;persist();clearForm();render();Promise.all(houses.map(remoteSave)).then(()=>toast('הגיבוי נטען ונשמר בענן')).catch(err=>{console.error(err);toast('הגיבוי נטען בדפדפן, אך חלק מהבתים לא נשמרו בענן')})}}catch(err){toast('לא ניתן לקרוא את קובץ הגיבוי הזה')}e.target.value=''});
 $('shareBtn').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(location.href);toast('הקישור הועתק. הבתים שמורים בענן ומופיעים לכל המשתתפים.')}catch(e){prompt('העתיקו את הקישור:',location.href)}});
 safeLoad();render();
-// Open on the whole neighborhood immediately, then refit once cloud houses finish loading.
-map.whenReady(()=>setTimeout(()=>showWholeNeighborhood(false),120));
-remoteLoad().then(()=>setTimeout(()=>showWholeNeighborhood(false),150)).catch(err=>{console.error('Could not load houses from Supabase',err);setTimeout(()=>showWholeNeighborhood(false),150)});
+// Fit only after the map has a real layout; refit after cloud data and tile/layout settling.
+function fitOnOpen(){
+  map.invalidateSize({pan:false});
+  requestAnimationFrame(()=>requestAnimationFrame(()=>showWholeNeighborhood(false)));
+}
+map.whenReady(()=>{[250,700,1300].forEach(ms=>setTimeout(fitOnOpen,ms));});
+remoteLoad().then(()=>{[100,500,1100].forEach(ms=>setTimeout(fitOnOpen,ms));}).catch(err=>{console.error('Could not load houses from Supabase',err);setTimeout(fitOnOpen,500)});
 })();
 </script>
 </body>
