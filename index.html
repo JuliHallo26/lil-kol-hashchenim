@@ -394,7 +394,16 @@ safeLoad();render();
 // Fit only after the map has a real layout; refit after cloud data and tile/layout settling.
 function fitOnOpen(){
   map.invalidateSize({pan:false});
-  requestAnimationFrame(()=>requestAnimationFrame(()=>showWholeNeighborhood(false)));
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    // On initial page load, frame the cluster of participating houses a little closer.
+    // The manual “show area” button keeps its existing, wider neighborhood view.
+    const pts=houses.filter(h=>Number.isFinite(h.lat)&&Number.isFinite(h.lng)).map(h=>[h.lat,h.lng]);
+    if(pts.length>=2){
+      map.fitBounds(L.latLngBounds(pts),{paddingTopLeft:[58,58],paddingBottomRight:[58,58],maxZoom:16.5,animate:false});
+    } else {
+      map.setView(DEFAULT_CENTER,15.5,{animate:false});
+    }
+  }));
 }
 map.whenReady(()=>{[250,700,1300].forEach(ms=>setTimeout(fitOnOpen,ms));});
 remoteLoad().then(()=>{[100,500,1100].forEach(ms=>setTimeout(fitOnOpen,ms));}).catch(err=>{console.error('Could not load houses from Supabase',err);setTimeout(fitOnOpen,500)});
