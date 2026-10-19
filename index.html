@@ -340,9 +340,7 @@ function showWholeNeighborhood(announce=true){
  map.invalidateSize({pan:false});
  if(pts.length>=2){
    const bounds=L.latLngBounds(pts);
-   map.fitBounds(bounds,{paddingTopLeft:[48,48],paddingBottomRight:[48,48],maxZoom:15,animate:false});
-   // Keep the neighborhood comfortably framed rather than zooming tightly to the houses.
-   if(map.getZoom()>15)map.setZoom(15,{animate:false});
+   map.fitBounds(bounds,{paddingTopLeft:[38,38],paddingBottomRight:[38,38],maxZoom:16,animate:false});
  } else { map.setView(DEFAULT_CENTER,15,{animate:false}); }
  if(announce)toast('הוצגה השכונה וכל הבתים המשתתפים');
 }
