@@ -162,7 +162,21 @@ main{padding-bottom:40px;}
   .leaflet-tile-pane{filter:none!important}
   .leaflet-control-zoom{display:none!important}
   a{color:#111!important}
-  @page{size:A4 landscape;margin:10mm}
+  @page{size:A4 landscape;margin:6mm}
+  /* Dedicated map-only print mode: hide every page section except the actual Leaflet map. */
+  body.print-map-only > header, body.print-map-only > main > .intro,
+  body.print-map-only .side-card, body.print-map-only > main > .footer,
+  body.print-map-only .art-rail, body.print-map-only .map-top,
+  body.print-map-only .toast, body.print-map-only #loginModal {display:none!important}
+  body.print-map-only, body.print-map-only main, body.print-map-only .layout,
+  body.print-map-only .map-card {display:block!important;width:100%!important;max-width:none!important;
+    margin:0!important;padding:0!important;border:0!important;border-radius:0!important;
+    box-shadow:none!important;background:#fff!important;overflow:visible!important}
+  body.print-map-only main{padding:0!important}
+  body.print-map-only #map{display:block!important;width:100%!important;height:184mm!important;
+    margin:0!important;background:#fff!important;overflow:hidden!important;break-inside:avoid!important}
+  body.print-map-only .leaflet-tile-pane{filter:hue-rotate(238deg) saturate(1.25) brightness(.88)!important}
+  body.print-map-only .leaflet-control-zoom{display:none!important}
 }
 </style>
 </head>
@@ -179,7 +193,7 @@ main{padding-bottom:40px;}
   </section>
   <section class="layout">
     <div class="map-card">
-      <div class="map-top"><div><strong>🗺️ מפת ההרפתקה</strong><div class="map-hint">לחצו על סמן כדי לראות פרטים על הבית</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="secondary small" id="locateBtn">◎ הצג את האזור</button><button class="secondary small" id="myLocationBtn">📍 המיקום שלי</button></div></div>
+      <div class="map-top"><div><strong>🗺️ מפת ההרפתקה</strong><div class="map-hint">לחצו על סמן כדי לראות פרטים על הבית</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="secondary small" id="locateBtn">◎ הצג את האזור</button><button class="secondary small" id="myLocationBtn">📍 המיקום שלי</button><button class="secondary small" id="printMapBtn">🖨️ הדפסת מפה</button></div></div>
       <div id="map" aria-label="מפת הבתים המשתתפים"></div>
     </div>
     <aside class="side-card">
@@ -285,7 +299,7 @@ window.goHouse=id=>{const h=houses.find(x=>x.id===id);if(!h)return;map.setView([
 window.editHouse=id=>{if(!adminMode)return;const h=houses.find(x=>x.id===id);if(!h)return;editingId=id;selectedCoords=[h.lat,h.lng];$('houseName').value=h.name||'';$('street').value=h.street||'';$('kind').value=h.kind||'ממתקים';$('note').value=h.note||'';$('scary').checked=!!h.scary;$('coords').value=h.lat.toFixed(6)+', '+h.lng.toFixed(6);$('saveHouse').textContent='💾 שמירת שינויים';$('cancelEdit').style.display='inline-block';map.setView([h.lat,h.lng],18);markers[id]?.openPopup();$('houseName').focus()};
 window.deleteHouse=async id=>{if(!adminMode)return;const h=houses.find(x=>x.id===id);if(!h)return;if(confirm('למחוק את '+(h.name||'הבית הזה')+' מהמפה?')){try{await remoteDelete(id);houses=houses.filter(x=>x.id!==id);persist();if(editingId===id)clearForm();render();toast('הבית הוסר מהמפה')}catch(e){console.error('Supabase delete failed',e);toast('המחיקה בענן נכשלה: '+(e.message||'בדקי הרשאות'))}}};
 map=L.map('map',{scrollWheelZoom:true}).setView(DEFAULT_CENTER,16);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>'}).addTo(map);
+const baseTiles=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>'}).addTo(map);
 map.on('click',e=>{if(!adminMode)return;selectedCoords=[e.latlng.lat,e.latlng.lng];$('coords').value=selectedCoords[0].toFixed(6)+', '+selectedCoords[1].toFixed(6);toast('המיקום נבחר. מלאו את הפרטים ולחצו על הוספת בית.')});
 $('saveHouse').addEventListener('click',async()=>{
  if(!adminMode)return;
@@ -342,6 +356,37 @@ $('myLocationBtn').addEventListener('click',()=>{
 $('exportBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(houses,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='halloween-houses-backup.json';a.click();URL.revokeObjectURL(a.href);toast('קובץ גיבוי הורד')});
 $('importFile').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{const data=JSON.parse(await file.text());if(!Array.isArray(data)||data.some(h=>!h.id||!Number.isFinite(h.lat)||!Number.isFinite(h.lng)))throw new Error();if(confirm('ייבוא הגיבוי יחליף את רשימת הבתים הנוכחית. להמשיך?')){houses=data;persist();clearForm();render();Promise.all(houses.map(remoteSave)).then(()=>toast('הגיבוי נטען ונשמר בענן')).catch(err=>{console.error(err);toast('הגיבוי נטען בדפדפן, אך חלק מהבתים לא נשמרו בענן')})}}catch(err){toast('לא ניתן לקרוא את קובץ הגיבוי הזה')}e.target.value=''});
 $('shareBtn').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(location.href);toast('הקישור הועתק. הבתים שמורים בענן ומופיעים לכל המשתתפים.')}catch(e){prompt('העתיקו את הקישור:',location.href)}});
+// Map-only A4 landscape print. Keep the map and its markers; do not print the site UI or list.
+let printPreviousView=null;
+function waitForMapTiles(timeoutMs=7000){
+  return new Promise(resolve=>{
+    let finished=false;
+    const finish=()=>{if(finished)return;finished=true;clearTimeout(timer);baseTiles.off('load',finish);resolve()};
+    const timer=setTimeout(finish,timeoutMs);
+    baseTiles.once('load',finish);
+    // If all visible tiles are already loaded, Leaflet's loading counter is zero.
+    if(baseTiles._loading===undefined || baseTiles._loading===false) setTimeout(finish,350);
+  });
+}
+$('printMapBtn').addEventListener('click',async()=>{
+  if(!map)return;
+  printPreviousView={center:map.getCenter(),zoom:map.getZoom()};
+  document.body.classList.add('print-map-only');
+  const pts=houses.filter(h=>Number.isFinite(h.lat)&&Number.isFinite(h.lng)).map(h=>[h.lat,h.lng]);
+  map.invalidateSize({pan:false});
+  if(pts.length>=2) map.fitBounds(L.latLngBounds(pts),{padding:[35,35],maxZoom:16,animate:false});
+  else map.setView(DEFAULT_CENTER,15,{animate:false});
+  map.invalidateSize({pan:false});
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  await waitForMapTiles();
+  window.print();
+});
+window.addEventListener('afterprint',()=>{
+  document.body.classList.remove('print-map-only');
+  if(printPreviousView){map.setView(printPreviousView.center,printPreviousView.zoom,{animate:false});printPreviousView=null;}
+  setTimeout(()=>map.invalidateSize({pan:false}),100);
+});
+window.addEventListener('beforeprint',()=>{map.invalidateSize({pan:false})});
 safeLoad();render();
 // Fit only after the map has a real layout; refit after cloud data and tile/layout settling.
 function fitOnOpen(){
