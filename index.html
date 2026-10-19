@@ -173,10 +173,11 @@ main{padding-bottom:40px;}
     margin:0!important;padding:0!important;border:0!important;border-radius:0!important;
     box-shadow:none!important;background:#fff!important;overflow:visible!important}
   body.print-map-only main{padding:0!important}
-  body.print-map-only #map{display:block!important;width:100%!important;height:184mm!important;
+  body.print-map-only #map{display:block!important;width:100%!important;height:184mm!important;min-height:184mm!important;
     margin:0!important;background:#fff!important;overflow:hidden!important;break-inside:avoid!important}
   body.print-map-only .leaflet-tile-pane{filter:hue-rotate(238deg) saturate(1.25) brightness(.88)!important}
   body.print-map-only .leaflet-control-zoom{display:none!important}
+  body.print-map-only .leaflet-pane, body.print-map-only .leaflet-tile, body.print-map-only .leaflet-marker-icon, body.print-map-only .leaflet-marker-shadow{print-color-adjust:exact;-webkit-print-color-adjust:exact}
 }
 </style>
 </head>
@@ -368,17 +369,13 @@ function waitForMapTiles(timeoutMs=7000){
     if(baseTiles._loading===undefined || baseTiles._loading===false) setTimeout(finish,350);
   });
 }
-$('printMapBtn').addEventListener('click',async()=>{
+$('printMapBtn').addEventListener('click',()=>{
   if(!map)return;
+  // Print exactly the map currently on screen: preserve the user's chosen zoom and pan.
   printPreviousView={center:map.getCenter(),zoom:map.getZoom()};
   document.body.classList.add('print-map-only');
-  const pts=houses.filter(h=>Number.isFinite(h.lat)&&Number.isFinite(h.lng)).map(h=>[h.lat,h.lng]);
   map.invalidateSize({pan:false});
-  if(pts.length>=2) map.fitBounds(L.latLngBounds(pts),{padding:[35,35],maxZoom:16,animate:false});
-  else map.setView(DEFAULT_CENTER,15,{animate:false});
-  map.invalidateSize({pan:false});
-  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
-  await waitForMapTiles();
+  // Call print directly inside the tap/click handler so mobile Safari does not block it.
   window.print();
 });
 window.addEventListener('afterprint',()=>{
