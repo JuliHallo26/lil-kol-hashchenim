@@ -173,7 +173,7 @@ main{padding-bottom:40px;}
     margin:0!important;padding:0!important;border:0!important;border-radius:0!important;
     box-shadow:none!important;background:#fff!important;overflow:visible!important}
   body.print-map-only main{padding:0!important}
-  body.print-map-only #map{display:block!important;width:100%!important;height:184mm!important;min-height:184mm!important;
+  body.print-map-only #map{display:block!important;width:100%!important;height:190mm!important;min-height:190mm!important;
     margin:0!important;background:#fff!important;overflow:hidden!important;break-inside:avoid!important}
   body.print-map-only .leaflet-tile-pane{filter:hue-rotate(238deg) saturate(1.25) brightness(.88)!important}
   body.print-map-only .leaflet-control-zoom{display:none!important}
@@ -299,7 +299,7 @@ function setAdmin(on){adminMode=on;$('adminPanel').classList.toggle('show',on);$
 window.goHouse=id=>{const h=houses.find(x=>x.id===id);if(!h)return;map.setView([h.lat,h.lng],18);markers[id]?.openPopup();if(window.innerWidth<850)document.querySelector('.map-card').scrollIntoView({behavior:'smooth',block:'start'})};
 window.editHouse=id=>{if(!adminMode)return;const h=houses.find(x=>x.id===id);if(!h)return;editingId=id;selectedCoords=[h.lat,h.lng];$('houseName').value=h.name||'';$('street').value=h.street||'';$('kind').value=h.kind||'ממתקים';$('note').value=h.note||'';$('scary').checked=!!h.scary;$('coords').value=h.lat.toFixed(6)+', '+h.lng.toFixed(6);$('saveHouse').textContent='💾 שמירת שינויים';$('cancelEdit').style.display='inline-block';map.setView([h.lat,h.lng],18);markers[id]?.openPopup();$('houseName').focus()};
 window.deleteHouse=async id=>{if(!adminMode)return;const h=houses.find(x=>x.id===id);if(!h)return;if(confirm('למחוק את '+(h.name||'הבית הזה')+' מהמפה?')){try{await remoteDelete(id);houses=houses.filter(x=>x.id!==id);persist();if(editingId===id)clearForm();render();toast('הבית הוסר מהמפה')}catch(e){console.error('Supabase delete failed',e);toast('המחיקה בענן נכשלה: '+(e.message||'בדקי הרשאות'))}}};
-map=L.map('map',{scrollWheelZoom:true}).setView(DEFAULT_CENTER,16);
+map=L.map('map',{scrollWheelZoom:true, zoomSnap:0.5, zoomDelta:0.5, wheelPxPerZoomLevel:120}).setView(DEFAULT_CENTER,16);
 const baseTiles=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>'}).addTo(map);
 map.on('click',e=>{if(!adminMode)return;selectedCoords=[e.latlng.lat,e.latlng.lng];$('coords').value=selectedCoords[0].toFixed(6)+', '+selectedCoords[1].toFixed(6);toast('המיקום נבחר. מלאו את הפרטים ולחצו על הוספת בית.')});
 $('saveHouse').addEventListener('click',async()=>{
@@ -371,12 +371,18 @@ function waitForMapTiles(timeoutMs=7000){
 }
 $('printMapBtn').addEventListener('click',()=>{
   if(!map)return;
-  // Print exactly the map currently on screen: preserve the user's chosen zoom and pan.
+  // Preserve the exact map view selected by the user.
   printPreviousView={center:map.getCenter(),zoom:map.getZoom()};
   document.body.classList.add('print-map-only');
+  // Force the print layout to be applied before Leaflet recalculates its tile positions.
   map.invalidateSize({pan:false});
-  // Call print directly inside the tap/click handler so mobile Safari does not block it.
-  window.print();
+  void document.getElementById('map').offsetHeight;
+  // Keep print invocation in the original user gesture for mobile Safari compatibility.
+  requestAnimationFrame(()=>{
+    map.invalidateSize({pan:false});
+    void document.getElementById('map').offsetHeight;
+    window.print();
+  });
 });
 window.addEventListener('afterprint',()=>{
   document.body.classList.remove('print-map-only');
